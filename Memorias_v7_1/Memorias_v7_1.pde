@@ -101,15 +101,15 @@ void draw() {
   float a = map(mouseX, 0, width, 0, PI);
   //float b = map(mouseY, 0, height, -TWO_PI, TWO_PI);
   float b = map(mouseY, 0, height, -1000, 0);
- /*
+  /*
   camera(
-  (width/2.0)+2*width*cos(a), height/2, b+width*sin(a), 
-  width/2.0, height/2.0, b, 
-  0, 1, 0);
-
-  lights();
-  directionalLight(1.0, 1.0, 1.0, 0, -1, 0);
-*/
+   (width/2.0)+2*width*cos(a), height/2, b+width*sin(a), 
+   width/2.0, height/2.0, b, 
+   0, 1, 0);
+   */
+   lights();
+   directionalLight(1.0, 1.0, 1.0, 0, -1, 0);
+   
   kin.update();
   //tintas.update();
   //image(kin.userImage(), 0, 0);
@@ -144,14 +144,14 @@ void draw() {
   //tintas.draw();
   //blend(mask, 0, 0, 640, 480, 0, 0, width, height, MULTIPLY);
 
-  if (scene == 1){
+  if (scene == 1) {
     tintas.update();
     drawCubeDepth();
   }
-  if (scene == 2){
+  if (scene == 2) {
     drawCubeSkel();
   }
-  if (scene == 3){
+  if (scene == 3) {
     tintas.update();
     drawCubeContours();
   }
@@ -185,7 +185,7 @@ void drawCubeSkel() {
     {
       println("sí estoy traqueando esqueletos");
       stroke(0);
-  
+
       PVector jointPos = new PVector();
       PVector jointPos2 = new PVector();
       PVector jointPosProyective = new PVector();
@@ -205,8 +205,8 @@ void drawCubeSkel() {
       //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
       temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
       temp.display(tintas.getImage());
-      
-      //drawLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_LEFT_HAND);
+
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_LEFT_HAND, 5);
 
       temp = new CuboMind(tintas.getImage());
       kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_RIGHT_HAND, jointPos);
@@ -214,8 +214,8 @@ void drawCubeSkel() {
       //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
       temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
       temp.display(tintas.getImage());
-      
-      //drawLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_RIGHT_HAND);
+
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_RIGHT_HAND, 5);
 
       temp = new CuboMind(tintas.getImage());
       kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_LEFT_FOOT, jointPos);
@@ -230,12 +230,11 @@ void drawCubeSkel() {
       //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
       temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
       temp.display(tintas.getImage());
-      //drawLimb(userId, SimpleOpenNI.SKEL_LEFT_FOOT, SimpleOpenNI.SKEL_RIGHT_FOOT);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_LEFT_FOOT, SimpleOpenNI.SKEL_RIGHT_FOOT, 5);
     }
   }
   kin.drawCamFrustum();
   popMatrix();
-  
 }
 
 
@@ -278,7 +277,7 @@ void drawCubeContours() {
         float y = map(point.y, 0, blobs.h, 0, height);
         //      vertex(x, y);
         if ( (i%25) == 0) {
-          CuboMind temp = new CuboMind(tintas.getImage());
+          CuboMind temp = new CuboMind();
           temp.vals(x, y, -200, 100);
           temp.display(tintas.getImage());
         }
@@ -311,20 +310,57 @@ void onVisibleUser(SimpleOpenNI curContext, int userId)
 }
 
 //---------------------
-void drawLimb(int userId,int jointType1,int jointType2)
+void drawLimb(int userId, int jointType1, int jointType2)
 {
   PVector jointPos1 = new PVector();
   PVector jointPos2 = new PVector();
   float  confidence;
-  
-  // draw the joint position
-  confidence = kin.getJointPositionSkeleton(userId,jointType1,jointPos1);
-  confidence = kin.getJointPositionSkeleton(userId,jointType2,jointPos2);
 
-  stroke(255,0,0,confidence * 200 + 55);
-  line(jointPos1.x,jointPos1.y,jointPos1.z,
-       jointPos2.x,jointPos2.y,jointPos2.z);
+  // draw the joint position
+  confidence = kin.getJointPositionSkeleton(userId, jointType1, jointPos1);
+  confidence = kin.getJointPositionSkeleton(userId, jointType2, jointPos2);
+
+  stroke(255, 0, 0, confidence * 200 + 55);
+  line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  jointPos2.x, jointPos2.y, jointPos2.z);
+}
+
+//---------------------
+void drawCubeLimb(int userId, int jointType1, int jointType2, int n)
+{
+  PVector jointPos1 = new PVector();
+  PVector jointPos2 = new PVector();
+  PVector segmento  = new PVector();
+  PVector dir       = new PVector();
+
+  float  paso;
+  float  confidence;
+
+  // draw the joint position
+  confidence = kin.getJointPositionSkeleton(userId, jointType1, jointPos1);
+  confidence = kin.getJointPositionSkeleton(userId, jointType2, jointPos2);
   
+  segmento = jointPos2.get();
+  segmento.sub(jointPos1);
+
+  paso = segmento.mag() / float(n);
+
+  dir = segmento.get();
+  dir.normalize();
+
+  stroke(255, 0, 0, confidence * 200 + 55);
+  line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  jointPos2.x, jointPos2.y, jointPos2.z);
+
+  for (int i = 0; i < n; i++) {
+    PVector walker = new PVector();
+    walker = dir.get();
+    walker.setMag(paso*i);
+    CuboMind temp = new CuboMind(tintas.getImage());  
+    walker.add(jointPos1);
+    temp.vals(walker, 500);
+    temp.display(tintas.getImage());
+  }
 }
 
 //---------------------
@@ -371,20 +407,20 @@ void keyPressed() {
   if (key == 'm') {
     tintas.metalBlue();
   }
-  
+
   if (key == 'n') {
     fill(255);
-    rect(0,0,width, height);
+    rect(0, 0, width, height);
   }
-  
+
   if (key == 'q') {
     perspective();
     scene = 1;
   }
   if (key == 'w') {
-//    perspective(radians(45),
-//              float(width)/float(height),
-//              10,150000);
+    //    perspective(radians(45),
+    //              float(width)/float(height),
+    //              10,150000);
     perspective();
     scene = 2;
   }
@@ -396,19 +432,19 @@ void keyPressed() {
   if (key == 's') {
     saveFrame("#####-memorias");
   }
-  
-   switch(keyCode)
+
+  switch(keyCode)
   {
-   
-    case UP:
-        zoomF += 0.01f; 
-      break;
-    
-    case DOWN:
-        zoomF -= 0.01f;
-        if(zoomF < 0.01)
-          zoomF = 0.01;
-      break;
+
+  case UP:
+    zoomF += 0.01f; 
+    break;
+
+  case DOWN:
+    zoomF -= 0.01f;
+    if (zoomF < 0.01)
+      zoomF = 0.01;
+    break;
   }
 }
 

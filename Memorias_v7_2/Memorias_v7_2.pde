@@ -5,8 +5,10 @@ import java.util.*;
 import toxi.sim.grayscott.*;
 import toxi.math.*;
 import toxi.color.*;
+import ddf.minim.*;
 
-
+Minim minim;
+AudioInput in;
 SimpleOpenNI kin;
 OpenCV opencv;
 Blobs blobs;
@@ -42,7 +44,7 @@ float giradorMapZ = 0;
 float alfa = 10;
 //float thr = 20;
 
-int scene = 2;
+int scene = 4;
 
 //---------------------
 void setup() {
@@ -52,6 +54,9 @@ void setup() {
   tex = loadImage("camposBW.jpg");
   txImg = loadImage("rizoma640_480corte.png");
   tintas = new Tintas();
+  
+  minim = new Minim(this);
+  in = minim.getLineIn(Minim.MONO, 512);
 
   if (kin.isInit() == false) {
     println("¿Te acordaste de conectar el Kinect?");
@@ -101,15 +106,15 @@ void draw() {
   float a = map(mouseX, 0, width, 0, PI);
   //float b = map(mouseY, 0, height, -TWO_PI, TWO_PI);
   float b = map(mouseY, 0, height, -1000, 0);
- /*
+  /*
   camera(
-  (width/2.0)+2*width*cos(a), height/2, b+width*sin(a), 
-  width/2.0, height/2.0, b, 
-  0, 1, 0);
-
+   (width/2.0)+2*width*cos(a), height/2, b+width*sin(a), 
+   width/2.0, height/2.0, b, 
+   0, 1, 0);
+   */
   lights();
   directionalLight(1.0, 1.0, 1.0, 0, -1, 0);
-*/
+
   kin.update();
   //tintas.update();
   //image(kin.userImage(), 0, 0);
@@ -144,16 +149,19 @@ void draw() {
   //tintas.draw();
   //blend(mask, 0, 0, 640, 480, 0, 0, width, height, MULTIPLY);
 
-  if (scene == 1){
+  if (scene == 1) {
     tintas.update();
     drawCubeDepth();
   }
-  if (scene == 2){
+  if (scene == 2) {
     drawCubeSkel();
   }
-  if (scene == 3){
+  if (scene == 3) {
     tintas.update();
     drawCubeContours();
+  }
+  if (scene == 4) {
+    drawSoundSkel();
   }
 
   //CuboMind cm = new CuboMind(tintas.getImage());
@@ -167,6 +175,7 @@ void draw() {
   //  out.updatePixels();
 }
 
+//------------------------------
 void drawCubeSkel() {
   pushMatrix();
   // set the scene pos
@@ -185,57 +194,91 @@ void drawCubeSkel() {
     {
       println("sí estoy traqueando esqueletos");
       stroke(0);
-  
+
       PVector jointPos = new PVector();
       PVector jointPos2 = new PVector();
       PVector jointPosProyective = new PVector();
-      CuboMind temp = new CuboMind(tintas.getImage());
-
-      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_HEAD, jointPos);      
-      //line(jointPos.x, jointPos.y, jointPos.z, width/2, height/2, 0);
-      //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
-      temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
-      temp.display(tintas.getImage());
-
-      temp = new CuboMind(tintas.getImage());
+      
       kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_LEFT_HAND, jointPos);
       kin.convertRealWorldToProjective(jointPos, jointPosProyective);
       tintas.update(jointPosProyective.x, jointPosProyective.y);
-      //line(jointPos.x, jointPos.y, jointPos.z, width/2, height/2, 0);
-      //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
-      temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
-      temp.display(tintas.getImage());
-      
-      //drawLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_LEFT_HAND);
 
-      temp = new CuboMind(tintas.getImage());
-      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_RIGHT_HAND, jointPos);
-      //line(jointPos.x, jointPos.y, jointPos.z, width/2, height/2, 0);
-      //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
-      temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
-      temp.display(tintas.getImage());
-      
-      //drawLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_RIGHT_HAND);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_NECK, 5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_LEFT_SHOULDER, 5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_ELBOW,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_LEFT_ELBOW, SimpleOpenNI.SKEL_LEFT_HAND,5);
 
-      temp = new CuboMind(tintas.getImage());
-      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_LEFT_FOOT, jointPos);
-      //line(jointPos.x, jointPos.y, jointPos.z, width/2, height/2, 0);
-      //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
-      temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
-      temp.display(tintas.getImage());
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_RIGHT_SHOULDER,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_ELBOW,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_ELBOW, SimpleOpenNI.SKEL_RIGHT_HAND,5);
 
-      temp = new CuboMind(tintas.getImage());
-      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_RIGHT_FOOT, jointPos);
-      //line(jointPos.x, jointPos.y, jointPos.z, width/2, height/2, 0);
-      //temp.vals(300+0.25*jointPos.x, 245-0.25*jointPos.y, -jointPos.z, 200);
-      temp.vals(jointPos.x, 1*jointPos.y, jointPos.z, 500);
-      temp.display(tintas.getImage());
-      //drawLimb(userId, SimpleOpenNI.SKEL_LEFT_FOOT, SimpleOpenNI.SKEL_RIGHT_FOOT);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_TORSO,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_TORSO,5);
+
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_LEFT_HIP,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_LEFT_HIP, SimpleOpenNI.SKEL_LEFT_KNEE,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_LEFT_KNEE, SimpleOpenNI.SKEL_LEFT_FOOT,5);
+
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_RIGHT_HIP,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_RIGHT_KNEE,5);
+      drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT,5);
     }
   }
   kin.drawCamFrustum();
   popMatrix();
-  
+}
+
+//------------------------------
+void drawSoundSkel() {
+  pushMatrix();
+  // set the scene pos
+  translate(width/2, height/2, 0);
+  rotateX(radians(180));
+  //rotateY(rotY);
+  scale(zoomF);
+  translate(0, 0, -1000);
+  // draw the skeleton if it's available
+  int[] userList = kin.getUsers();
+  for (int i=0; i<userList.length; i++)
+  {
+    int userId = userList[i];
+    println("traqueando esqueletos: " + kin.isTrackingSkeleton(userId) + " kin.size: " + userList.length);
+    if (kin.isTrackingSkeleton(userId))
+    {
+      println("sí estoy traqueando esqueletos");
+      stroke(0);
+
+      PVector jointPos = new PVector();
+      PVector jointPos2 = new PVector();
+      PVector jointPosProyective = new PVector();
+      
+      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_LEFT_HAND, jointPos);
+      kin.convertRealWorldToProjective(jointPos, jointPosProyective);
+      tintas.update(jointPosProyective.x, jointPosProyective.y);
+
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_NECK, 5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_LEFT_SHOULDER, 5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_ELBOW,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_LEFT_ELBOW, SimpleOpenNI.SKEL_LEFT_HAND,5);
+
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_RIGHT_SHOULDER,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_ELBOW,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_RIGHT_ELBOW, SimpleOpenNI.SKEL_RIGHT_HAND,5);
+
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_TORSO,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_TORSO,5);
+
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_LEFT_HIP,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_LEFT_HIP, SimpleOpenNI.SKEL_LEFT_KNEE,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_LEFT_KNEE, SimpleOpenNI.SKEL_LEFT_FOOT,5);
+
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_RIGHT_HIP,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_RIGHT_KNEE,5);
+      drawSoundLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT,5);
+    }
+  }
+  kin.drawCamFrustum();
+  popMatrix();
 }
 
 
@@ -278,7 +321,7 @@ void drawCubeContours() {
         float y = map(point.y, 0, blobs.h, 0, height);
         //      vertex(x, y);
         if ( (i%25) == 0) {
-          CuboMind temp = new CuboMind(tintas.getImage());
+          CuboMind temp = new CuboMind();
           temp.vals(x, y, -200, 100);
           temp.display(tintas.getImage());
         }
@@ -311,20 +354,107 @@ void onVisibleUser(SimpleOpenNI curContext, int userId)
 }
 
 //---------------------
-void drawLimb(int userId,int jointType1,int jointType2)
+void drawLimb(int userId, int jointType1, int jointType2)
 {
   PVector jointPos1 = new PVector();
   PVector jointPos2 = new PVector();
   float  confidence;
-  
-  // draw the joint position
-  confidence = kin.getJointPositionSkeleton(userId,jointType1,jointPos1);
-  confidence = kin.getJointPositionSkeleton(userId,jointType2,jointPos2);
 
-  stroke(255,0,0,confidence * 200 + 55);
-  line(jointPos1.x,jointPos1.y,jointPos1.z,
-       jointPos2.x,jointPos2.y,jointPos2.z);
+  // draw the joint position
+  confidence = kin.getJointPositionSkeleton(userId, jointType1, jointPos1);
+  confidence = kin.getJointPositionSkeleton(userId, jointType2, jointPos2);
+
+  stroke(255, 0, 0, confidence * 200 + 55);
+  line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  jointPos2.x, jointPos2.y, jointPos2.z);
+}
+
+//---------------------
+void drawCubeLimb(int userId, int jointType1, int jointType2, int n)
+{
+  PVector jointPos1 = new PVector();
+  PVector jointPos2 = new PVector();
+  PVector segmento  = new PVector();
+  PVector dir       = new PVector();
+
+  float  paso;
+  float  confidence;
+
+  // draw the joint position
+  confidence = kin.getJointPositionSkeleton(userId, jointType1, jointPos1);
+  confidence = kin.getJointPositionSkeleton(userId, jointType2, jointPos2);
+
+  segmento = jointPos2.get();
+  segmento.sub(jointPos1);
+
+  paso = segmento.mag() / float(n);
+
+  dir = segmento.get();
+  dir.normalize();
+
+  stroke(255, 0, 0, 70);
+  line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  jointPos2.x, jointPos2.y, jointPos2.z);
+
+  for (int i = 0; i < n; i++) {
+    PVector walker = new PVector();
+    walker = dir.get();
+    walker.setMag(paso*i);
+    CuboMind temp = new CuboMind(tintas.getImage());  
+    walker.add(jointPos1);
+    temp.vals(walker, 300*noise(jointPos1.x, jointPos1.y, jointPos1.z)+400);
+    temp.display(tintas.getImage());
+  }
+}
+
+//---------------------
+void drawSoundLimb(int userId, int jointType1, int jointType2, int n)
+{
+  PVector jointPos1 = new PVector();
+  PVector jointPos2 = new PVector();
+  PVector segmento  = new PVector();
+  PVector dir       = new PVector();
+
+  float  paso;
+  float  confidence;
+
+  // draw the joint position
+  confidence = kin.getJointPositionSkeleton(userId, jointType1, jointPos1);
+  confidence = kin.getJointPositionSkeleton(userId, jointType2, jointPos2);
+
+  segmento = jointPos2.get();
+  segmento.sub(jointPos1);
+
+  paso = segmento.mag() / float(in.bufferSize());
+
+  dir = segmento.get();
+  dir.normalize();
+
+  stroke(255, 0, 0, 70);
+  line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  jointPos2.x, jointPos2.y, jointPos2.z);
   
+  stroke(frameCount%90, frameCount%180, frameCount%200, 20);
+  strokeWeight(5);
+  beginShape();
+  vertex(jointPos1.x, jointPos1.y, jointPos1.z);
+  for (int i = 1; i < in.bufferSize()-1; i++) {
+    PVector walker = new PVector();
+    PVector ortho = new PVector();
+    walker = dir.get();
+    walker.setMag(paso*i); 
+    walker.add(jointPos1);
+    ortho = walker.cross(segmento);
+    ortho.setMag(in.left.get(i)*500);
+    ortho.add(walker); 
+    fill(ortho.x%255, ortho.y%255, ortho.z%255, 20);
+    vertex(ortho.x, ortho.y, ortho.z);
+    
+   
+  }
+  vertex(jointPos2.x, jointPos2.y, jointPos2.z);
+  endShape();
+  strokeWeight(1);
 }
 
 //---------------------
@@ -371,20 +501,20 @@ void keyPressed() {
   if (key == 'm') {
     tintas.metalBlue();
   }
-  
+
   if (key == 'n') {
     fill(255);
-    rect(0,0,width, height);
+    rect(0, 0, width, height);
   }
-  
+
   if (key == 'q') {
     perspective();
     scene = 1;
   }
   if (key == 'w') {
-//    perspective(radians(45),
-//              float(width)/float(height),
-//              10,150000);
+    //    perspective(radians(45),
+    //              float(width)/float(height),
+    //              10,150000);
     perspective();
     scene = 2;
   }
@@ -392,23 +522,28 @@ void keyPressed() {
     perspective();
     scene = 3;
   }
+  
+  if (key == 'a') {
+    perspective();
+    scene = 4;
+  }
 
   if (key == 's') {
     saveFrame("#####-memorias");
   }
-  
-   switch(keyCode)
+
+  switch(keyCode)
   {
-   
-    case UP:
-        zoomF += 0.01f; 
-      break;
-    
-    case DOWN:
-        zoomF -= 0.01f;
-        if(zoomF < 0.01)
-          zoomF = 0.01;
-      break;
+
+  case UP:
+    zoomF += 0.01f; 
+    break;
+
+  case DOWN:
+    zoomF -= 0.01f;
+    if (zoomF < 0.01)
+      zoomF = 0.01;
+    break;
   }
 }
 
