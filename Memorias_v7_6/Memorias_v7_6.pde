@@ -46,10 +46,17 @@ float alfa = 10;
 
 int scene = 4;
 
+boolean cubeDepth = false;
+boolean cubeSkel = false;
+boolean cubeContours = false;
+boolean soundSkel = false;
+boolean noiseSkel = false;
+boolean spiralSkel = true;
+
 //---------------------
 void setup() {
-  //size(640, 480, OPENGL);
-  size(displayWidth, displayHeight, OPENGL);
+  size(640, 480, OPENGL);
+  //size(displayWidth, displayHeight, OPENGL);
   kin = new SimpleOpenNI(this);
   tex = loadImage("camposBW.jpg");
   txImg = loadImage("rizoma640_480corte.png");
@@ -101,11 +108,11 @@ void setup() {
 void draw() {
   //background(255);
 
-  if (frameCount%5 == 0) {
+  /*if (frameCount%30 == 0) {
     noStroke();
     fill(255, 20);
     rect(0, 0, width, height);
-  }
+  }*/
 
   //cubes.clear();
   //tint(0, 200);
@@ -119,7 +126,7 @@ void draw() {
    0, 1, 0);
    */
   lights();
-  directionalLight(1.0, 1.0, 1.0, 0, -1, 0);
+  directionalLight(1.0, 1.0, 1.0, cos(frameCount*0.01), (sin(frameCount*0.01)), 0);
 
   kin.update();
   //tintas.update();
@@ -155,28 +162,28 @@ void draw() {
   //tintas.draw();
   //blend(mask, 0, 0, 640, 480, 0, 0, width, height, MULTIPLY);
 
-  if (scene == 1) {
+  if (cubeDepth) {
     tintas.update();
     drawCubeDepth();
   }
-  if (scene == 2) {
+  if (cubeSkel) {
     drawCubeSkel();
   }
-  if (scene == 3) {
+  if (cubeContours) {
     tintas.update();
     drawCubeContours();
   }
-  if (scene == 4) {
+  if (soundSkel) {
     drawSoundSkel();
   }
-  if (scene == 5) {
+  if (noiseSkel) {
     drawNoiseSkel();
   }
-  if (scene == 6) {
+  if (spiralSkel) {
     drawSpiralSkel();
-    saveFrame("#####-memorias");
+    
   }
-
+  //saveFrame("#####-memorias");
 
   //CuboMind cm = new CuboMind(tintas.getImage());
   //cm.vals(mouseX, mouseY, -500, 100);
@@ -548,18 +555,18 @@ void drawCubeLimb(int userId, int jointType1, int jointType2, int n)
   dir = segmento.get();
   dir.normalize();
 
-  stroke(255, 0, 0, 70);
-  line(jointPos1.x, jointPos1.y, jointPos1.z, 
-  jointPos2.x, jointPos2.y, jointPos2.z);
+  //stroke(255, 0, 0, 70);
+  //line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  //jointPos2.x, jointPos2.y, jointPos2.z);
 
   for (int i = 0; i < n; i++) {
     PVector walker = new PVector();
     walker = dir.get();
     walker.setMag(paso*i);
-    CuboMind temp = new CuboMind(tintas.getImage());  
+    CuboMind temp = new CuboMind();  
     walker.add(jointPos1);
-    temp.vals(walker, 300*noise(jointPos1.x, jointPos1.y, jointPos1.z)+400);
-    temp.display(tintas.getImage());
+    temp.vals(walker, 100*noise(jointPos1.x, jointPos1.y, jointPos1.z)+150);
+    temp.display(txImg);
   }
 }
 
@@ -715,7 +722,7 @@ void drawSpiralLimb(int userId, int jointType1, int jointType2, int n)
     walker.setMag(paso*i); 
     walker.add(jointPos1);
      
-    float amp = 50.0 + random(-20, 20);
+    float amp = 50.0 + (random(-20, 20)*random(-20,20) * sin(frameCount*0.01));
     float x = amp*cos(ang*i);
     float z = amp*sin(ang*i);
 
@@ -727,16 +734,16 @@ void drawSpiralLimb(int userId, int jointType1, int jointType2, int n)
 //    120*sin(i*(1/1024.0)*TWO_PI));                                   //a
 //   
     stroke(random(0,127), random(127,255));
-    fill(255, 50);
+    fill(255, 7);
     //noFill();
-    curveVertex(walker.x+x, walker.y+random(-10,10), walker.z+z);
+    curveVertex(walker.x+x, walker.y+random(-30,30), walker.z+z);
   }
   stroke(190, 160, 120, 0);
   curveVertex(jointPos2.x, jointPos2.y, jointPos2.z);
-  //curveVertex(jointPos2.x, jointPos2.y, jointPos2.z);
+  curveVertex(jointPos2.x, jointPos2.y, jointPos2.z);
   endShape();
   strokeWeight(1);
-  colorMode(RGB);
+  //colorMode(RGB);
 }
 
 //---------------------
@@ -791,33 +798,40 @@ void keyPressed() {
 
   if (key == 'q') {
     perspective();
-    scene = 1;
+    //scene = 1;
+    cubeDepth = !cubeDepth;
+    
   }
   if (key == 'w') {
     //    perspective(radians(45),
     //              float(width)/float(height),
     //              10,150000);
     perspective();
-    scene = 2;
+    //scene = 2;
+    cubeSkel = !cubeSkel;
   }
   if (key == 'e') {
     perspective();
-    scene = 3;
+    //scene = 3;
+    cubeContours = !cubeContours;
   }
 
   if (key == 'a') {
     perspective();
-    scene = 4;
+    //scene = 4;
+    soundSkel = !soundSkel;
   }
 
   if (key == 'd') {
     perspective();
-    scene = 5;
+    //scene = 5;
+    noiseSkel = !noiseSkel;
   }
 
   if (key == 'f') {
     perspective();
-    scene = 6;
+    //scene = 6;
+    spiralSkel = !spiralSkel;
   }
 
   if (key == 's') {

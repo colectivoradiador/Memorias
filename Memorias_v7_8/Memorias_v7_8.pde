@@ -7,6 +7,8 @@ import toxi.math.*;
 import toxi.color.*;
 import ddf.minim.*;
 
+
+
 Minim minim;
 AudioInput in;
 SimpleOpenNI kin;
@@ -20,7 +22,7 @@ HashMap <String, PVector> skel = new HashMap<String, PVector>();
 Vector <CuboMind> skelCubos = new Vector<CuboMind>();
 
 
-int N = 100;
+int N = 5;
 Particula[] particulas = new Particula[N];
 float[] vtx = new float[8];
 
@@ -33,26 +35,37 @@ PImage mask;
 PImage tex;
 PImage out;
 PImage txImg;
+PImage txImg2;
 
 float zoomF = 0.5f;
-float giradorX = 0;
-float giradorMapX = 0;
-float giradorY = 0;
-float giradorMapY = 0;
-float giradorZ = 0;
-float giradorMapZ = 0;
-float alfa = 10;
+float rotY = 0.0;
 //float thr = 20;
 
 int scene = 4;
 
+boolean cubeDepth = false;
+boolean cubeSkel = false;
+boolean cubeContours = false;
+boolean soundSkel = false;
+boolean noiseSkel = false;
+boolean spiralSkel = false;
+boolean rojo = false;
+boolean contourParticles = false;
+boolean tintasTodas = true;
+
+float amp = 0;
+
 //---------------------
 void setup() {
-  //size(640, 480, OPENGL);
-  size(displayWidth, displayHeight, OPENGL);
+  size(640, 480, OPENGL);
+  //size(displayWidth, displayHeight, OPENGL);
+  //size(1920, 1080, OPENGL); //Full HD
+  //size(4295, 2415, OPENGL); //Full HD
+
   kin = new SimpleOpenNI(this);
   tex = loadImage("camposBW.jpg");
   txImg = loadImage("rizoma640_480corte.png");
+  txImg2 = loadImage("rizoma640_480corterojo.png");
   tintas = new Tintas();
 
   minim = new Minim(this);
@@ -87,10 +100,10 @@ void setup() {
   skel.put("pieI", new PVector());
 
 
-  /*  for (int i=0; i < N; i++) {
-   particulas[i] = new Particula(int(random(0, width)), int(random(0, height)));
-   }
-   */
+  for (int i=0; i < N; i++) {
+    particulas[i] = new Particula(int(random(-width, width)), int(random(0, height)), int(random(80, 4000)));
+  }
+
 
   //  for (int i=0; i< vtx.length; i++) {
   //    vtx[i] = random(0.001, 0.05);
@@ -99,13 +112,14 @@ void setup() {
 
 //---------------------
 void draw() {
+
   //background(255);
 
-  if (frameCount%5 == 0) {
-    noStroke();
-    fill(255, 20);
-    rect(0, 0, width, height);
-  }
+  /*if (frameCount%30 == 0) {
+   noStroke();
+   fill(255, 20);
+   rect(0, 0, width, height);
+   }*/
 
   //cubes.clear();
   //tint(0, 200);
@@ -119,7 +133,7 @@ void draw() {
    0, 1, 0);
    */
   lights();
-  directionalLight(1.0, 1.0, 1.0, 0, -1, 0);
+  directionalLight(1.0, 1.0, 1.0, cos(frameCount*0.001), (sin(frameCount*0.001)), 0);
 
   kin.update();
   //tintas.update();
@@ -152,31 +166,46 @@ void draw() {
    }
    */
   //tint(255, 50);
-  //tintas.draw();
   //blend(mask, 0, 0, 640, 480, 0, 0, width, height, MULTIPLY);
 
-  if (scene == 1) {
+  if (cubeDepth) {
     tintas.update();
     drawCubeDepth();
   }
-  if (scene == 2) {
+  if (cubeSkel) {
+    tintas.update();
     drawCubeSkel();
   }
-  if (scene == 3) {
+  if (cubeContours) {
     tintas.update();
     drawCubeContours();
   }
-  if (scene == 4) {
+  if (soundSkel) {
     drawSoundSkel();
   }
-  if (scene == 5) {
+  if (noiseSkel) {
     drawNoiseSkel();
   }
-  if (scene == 6) {
+  if (spiralSkel) {
     drawSpiralSkel();
-    saveFrame("#####-memorias");
+  }
+  if (contourParticles) {
+    drawContourParticles();
+  }
+  if (tintasTodas) {
+    drawTintasTodas();
+    tintas.draw();
   }
 
+  amp = rmsAmp();
+  //println("amp: " + amp);
+  noFill();
+  rect(20, 150-(100*amp), 0, 100*amp);
+
+
+
+
+  //saveFrame("#####-memorias");
 
   //CuboMind cm = new CuboMind(tintas.getImage());
   //cm.vals(mouseX, mouseY, -500, 100);
@@ -195,7 +224,7 @@ void drawCubeSkel() {
   // set the scene pos
   translate(width/2, height/2, 0);
   rotateX(radians(180));
-  //rotateY(rotY);
+  rotateY(rotY);
   scale(zoomF);
   translate(0, 0, -1000);
   // draw the skeleton if it's available
@@ -238,9 +267,57 @@ void drawCubeSkel() {
       drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT, 5);
     }
   }
-  kin.drawCamFrustum();
+  CuboMind temp = new CuboMind();  
+  temp.vals(new PVector(0, 0, 1000), 500);
+  temp.display(tintas.getImage());
+  //kin.drawCamFrustum();
   popMatrix();
 }
+
+//------------------------------ç
+// TintasTodas
+//------------------------------
+void drawTintasTodas() {
+
+  // draw the skeleton if it's available
+  int[] userList = kin.getUsers();
+  for (int i=0; i<userList.length; i++)
+  {
+    int userId = userList[i];
+    println("traqueando esqueletos: " + kin.isTrackingSkeleton(userId) + " kin.size: " + userList.length);
+    if (kin.isTrackingSkeleton(userId))
+    {
+      println("sí estoy traqueando esqueletos");
+      stroke(0);
+
+      PVector jointPos = new PVector();
+      PVector jointPosProyective = new PVector();
+
+      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_HEAD, jointPos);
+      kin.convertRealWorldToProjective(jointPos, jointPosProyective);
+      tintas.update(jointPosProyective.x, jointPosProyective.y);
+
+      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_LEFT_HAND, jointPos);
+      kin.convertRealWorldToProjective(jointPos, jointPosProyective);
+      tintas.update(jointPosProyective.x, jointPosProyective.y);
+
+      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_RIGHT_HAND, jointPos);
+      kin.convertRealWorldToProjective(jointPos, jointPosProyective);
+      tintas.update(jointPosProyective.x, jointPosProyective.y);
+
+      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_LEFT_FOOT, jointPos);
+      kin.convertRealWorldToProjective(jointPos, jointPosProyective);
+      tintas.update(jointPosProyective.x, jointPosProyective.y);
+
+      kin.getJointPositionSkeleton(userId, SimpleOpenNI.SKEL_RIGHT_FOOT, jointPos);
+      kin.convertRealWorldToProjective(jointPos, jointPosProyective);
+      tintas.update(jointPosProyective.x, jointPosProyective.y);
+    }
+  }
+
+  //kin.drawCamFrustum();
+}
+
 
 //------------------------------
 void drawSoundSkel() {
@@ -248,7 +325,7 @@ void drawSoundSkel() {
   // set the scene pos
   translate(width/2, height/2, 0);
   rotateX(radians(180));
-  //rotateY(rotY);
+  rotateY(rotY);
   scale(zoomF);
   translate(0, 0, -1000);
   // draw the skeleton if it's available
@@ -291,7 +368,7 @@ void drawSoundSkel() {
       drawSoundLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT, 5);
     }
   }
-  kin.drawCamFrustum();
+  //kin.drawCamFrustum();
   popMatrix();
 }
 
@@ -301,7 +378,7 @@ void drawNoiseSkel() {
   // set the scene pos
   translate(width/2, height/2, 0);
   rotateX(radians(180));
-  //rotateY(rotY);
+  rotateY(rotY);
   scale(zoomF);
   translate(0, 0, -1000);
   // draw the skeleton if it's available
@@ -344,7 +421,7 @@ void drawNoiseSkel() {
       drawNoiseLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT, 5);
     }
   }
-  kin.drawCamFrustum();
+  //kin.drawCamFrustum();
   popMatrix();
 }
 
@@ -354,7 +431,7 @@ void drawSpiralSkel() {
   // set the scene pos
   translate(width/2, height/2, 0);
   rotateX(radians(180));
-  //rotateY(rotY);
+  rotateY(rotY);
   scale(zoomF);
   translate(0, 0, -1000);
   // draw the skeleton if it's available
@@ -376,25 +453,25 @@ void drawSpiralSkel() {
       kin.convertRealWorldToProjective(jointPos, jointPosProyective);
       tintas.update(jointPosProyective.x, jointPosProyective.y);
 
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_NECK, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_LEFT_SHOULDER, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_ELBOW, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_ELBOW, SimpleOpenNI.SKEL_LEFT_HAND, 500);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_HEAD, SimpleOpenNI.SKEL_NECK, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_LEFT_SHOULDER, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_ELBOW, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_ELBOW, SimpleOpenNI.SKEL_LEFT_HAND, 50);
 
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_RIGHT_SHOULDER, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_ELBOW, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_ELBOW, SimpleOpenNI.SKEL_RIGHT_HAND, 500);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_NECK, SimpleOpenNI.SKEL_RIGHT_SHOULDER, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_ELBOW, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_ELBOW, SimpleOpenNI.SKEL_RIGHT_HAND, 50);
 
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_HIP, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_HIP, 500);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_SHOULDER, SimpleOpenNI.SKEL_LEFT_HIP, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_SHOULDER, SimpleOpenNI.SKEL_RIGHT_HIP, 50);
 
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_LEFT_HIP, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_HIP, SimpleOpenNI.SKEL_LEFT_KNEE, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_KNEE, SimpleOpenNI.SKEL_LEFT_FOOT, 500);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_LEFT_HIP, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_HIP, SimpleOpenNI.SKEL_LEFT_KNEE, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_LEFT_KNEE, SimpleOpenNI.SKEL_LEFT_FOOT, 50);
 
       //drawNoiseLimb(userId, SimpleOpenNI.SKEL_TORSO, SimpleOpenNI.SKEL_RIGHT_HIP,5);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_RIGHT_KNEE, 500);
-      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT, 500);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_HIP, SimpleOpenNI.SKEL_RIGHT_KNEE, 50);
+      drawSpiralLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT, 50);
     }
   }
   //kin.drawCamFrustum();
@@ -440,6 +517,15 @@ boolean insidePolygon(ArrayList<PVector> polygon, int N, PVector p){
  */
 //---------------------
 void drawCubeDepth() {
+  pushMatrix();
+  // set the scene pos
+  translate(width/2, height/2, 0);
+  rotateX(radians(180));
+  rotateY(rotY);
+  scale(zoomF);
+  translate(0, 0, -1000);
+  PVector rwPoint;
+
 
   int indx = 0;
   for (int y = 0; y < mask.height; y +=int (mask.height/20)) {
@@ -449,21 +535,30 @@ void drawCubeDepth() {
         color c = mask.get(x, y);
         color d = ((PImage)kin.depthImage()).get(x, y);
         if (red(c) > 0) {          
-
+          int i = int(x + (y*kin.depthWidth()));
+          rwPoint = kin.depthMapRealWorld()[i];
           // .vals(float x, float y, float z, float size);
-          tmp.vals(x, y, -200, 100); 
-          //tmp.display(txImg);
-          tmp.display(tintas.getImage()); // send image to render on cube;
+          tmp.vals(rwPoint, 500); 
+          tmp.display(txImg);
+          //tmp.display(tintas.getImage()); // send image to render on cube;
           indx++;
         }
       }
     }
   }
+  popMatrix();
 }
 
 //---------------------
 void drawCubeContours() {
-
+  pushMatrix();
+  // set the scene pos
+  translate(width/2, height/2, 0);
+  rotateX(radians(180));
+  rotateY(rotY);
+  scale(zoomF);
+  translate(0, 0, -1000);
+  PVector rwPoint;
   blobs.findBlobs();
   for (Contour contour : blobs.contours) {
     if (contour.area() > 250) {
@@ -473,12 +568,13 @@ void drawCubeContours() {
       for (PVector point : contour.getPoints ()) 
       {
         //    println("cubeDraw");
-        float x = map(point.x, 0, blobs.w, 0, width);
-        float y = map(point.y, 0, blobs.h, 0, height);
+        int indx = int(point.x*2 + (point.y*2*kin.depthWidth()));
+        rwPoint = kin.depthMapRealWorld()[indx];
+        fill(rwPoint.z, 70);
         //      vertex(x, y);
-        if ( (i%25) == 0) {
+        if ( (i%25) == 0 && rwPoint.z != 0) {
           CuboMind temp = new CuboMind();
-          temp.vals(x, y, -200, 100);
+          temp.vals(rwPoint, 100);
           temp.display(tintas.getImage());
         }
         i++;
@@ -486,6 +582,67 @@ void drawCubeContours() {
       //      endShape();
     }
   }
+  popMatrix();
+}
+
+//----------------------
+void drawContourParticles() {
+  pushMatrix();
+  // set the scene pos
+  translate(width/2, height/2, 0);
+  rotateX(radians(180));
+  rotateY(rotY);
+  scale(zoomF);
+  translate(0, 0, -1000);
+  PVector rwPoint;
+  blobs.findBlobs();
+  for (Contour contour : blobs.contours) {
+    if (contour.area() > 250) {
+      //      stroke(0);
+      //      beginShape();
+      stroke(120, 70);
+      beginShape();
+
+      for (PVector point : contour.getPoints ()) {
+        //    println("cubeDraw");
+        int indx = int(point.x*2 + (point.y*2*kin.depthWidth()));
+        rwPoint = kin.depthMapRealWorld()[indx];
+        stroke(255-255*amp, 127);
+
+        //noFill();
+        if (rwPoint.z > 80 && rwPoint.z < 4000) {
+
+          fill(map(rwPoint.z, 0, 4000, 0, 255)*amp, 127);
+
+          vertex(rwPoint.x, rwPoint.y, rwPoint.z);
+
+          //          for (int i=0; i < N; i++) {
+          //            particulas[i].addAtraction(rwPoint);
+          //            //stroke(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, 1);
+          //            //line(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, rwPoint.x, rwPoint.y, rwPoint.z);
+          //          }
+        }
+      }
+      endShape();
+    }
+  }
+
+
+  //  //beginShape();
+  //  for (int i=0; i < N; i++) {
+  //    particulas[i].update();
+  //    //fill(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, 170);
+  //    //stroke(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, 100);
+  //    particulas[i].draw();
+  //    /* if (i > 0) {
+  //     stroke(particulas[i].pos.x, particulas[i].pos.y, particulas[i-1].pos.x, 10);
+  //     line(particulas[i].pos.x, particulas[i].pos.y, particulas[i-1].pos.x, particulas[i-1].pos.y);
+  //     }*/
+  //     vertex(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z);
+  //    particulas[i].atrs.clear();
+  //  }
+  //  //endShape();
+  popMatrix();
 }
 
 // -----------------------------------------------------------------
@@ -510,6 +667,8 @@ void onVisibleUser(SimpleOpenNI curContext, int userId)
 }
 
 //---------------------
+// drawLimb
+
 void drawLimb(int userId, int jointType1, int jointType2)
 {
   PVector jointPos1 = new PVector();
@@ -526,6 +685,7 @@ void drawLimb(int userId, int jointType1, int jointType2)
 }
 
 //---------------------
+// drawCubeLimb
 void drawCubeLimb(int userId, int jointType1, int jointType2, int n)
 {
   PVector jointPos1 = new PVector();
@@ -548,18 +708,22 @@ void drawCubeLimb(int userId, int jointType1, int jointType2, int n)
   dir = segmento.get();
   dir.normalize();
 
-  stroke(255, 0, 0, 70);
-  line(jointPos1.x, jointPos1.y, jointPos1.z, 
-  jointPos2.x, jointPos2.y, jointPos2.z);
+  //stroke(255, 0, 0, 70);
+  //line(jointPos1.x, jointPos1.y, jointPos1.z, 
+  //jointPos2.x, jointPos2.y, jointPos2.z);
 
   for (int i = 0; i < n; i++) {
     PVector walker = new PVector();
     walker = dir.get();
     walker.setMag(paso*i);
-    CuboMind temp = new CuboMind(tintas.getImage());  
+    CuboMind temp = new CuboMind();  
     walker.add(jointPos1);
-    temp.vals(walker, 300*noise(jointPos1.x, jointPos1.y, jointPos1.z)+400);
-    temp.display(tintas.getImage());
+    temp.vals(walker, 100*noise(jointPos1.x, jointPos1.y, jointPos1.z)+150);
+    if (rojo) {
+      temp.display(txImg2);
+    } else {
+      temp.display(tintas.getImage());
+    }
   }
 }
 
@@ -683,6 +847,7 @@ void drawSpiralLimb(int userId, int jointType1, int jointType2, int n)
 
   float  paso;
   float  confidence;
+  float  lineWeight = random(0.1, 5);
 
   // draw the joint position
   confidence = kin.getJointPositionSkeleton(userId, jointType1, jointPos1);
@@ -691,7 +856,7 @@ void drawSpiralLimb(int userId, int jointType1, int jointType2, int n)
   segmento = jointPos2.get();
   segmento.sub(jointPos1);
 
-  paso = segmento.mag() / float(in.bufferSize());
+  paso = segmento.mag() / float(n);
 
   dir = segmento.get();
   dir.normalize();
@@ -703,40 +868,75 @@ void drawSpiralLimb(int userId, int jointType1, int jointType2, int n)
    */
 
   //stroke(frameCount%90, frameCount%180, frameCount%200, 20);
-  strokeWeight(5);
+  strokeWeight(lineWeight);
+  //curveTightness(5-10*noise(0.0002*jointPos1.x, 0.0003*jointPos1.y, 0.00017*jointPos1.z));
   beginShape();
   stroke(120, 0);    
   curveVertex(jointPos1.x, jointPos1.y, jointPos1.z);
   curveVertex(jointPos1.x, jointPos1.y, jointPos1.z);
-  for (int i = 1; i < n; i+=10) {
+  int count = 0;
+  //PVector[] curva = new PVector[4];
+  //curva[0] = jointPos1;
+  for (int i = 1; i < n; i++) {
     float ang = 10*TWO_PI/n;
     PVector walker = new PVector();
+    PVector ortho = new PVector();
     walker = dir.get();
     walker.setMag(paso*i); 
     walker.add(jointPos1);
-     
-    float amp = 50.0 + random(-20, 20);
+
+    float amp = 50.0 + (random(-20, 20)*random(-20, 20) * sin(frameCount*0.01));
     float x = amp*cos(ang*i);
     float z = amp*sin(ang*i);
+    walker.set(walker.x+x, walker.y+random(-10, 10), walker.z+z);
+    ortho = walker.cross(segmento);
+    int sn = int(map(i, 0, n, 0, in.bufferSize()));
+    ortho.setMag(in.left.get(sn)*250 + (100*noise(0.05*walker.x, 0.07*walker.y, 0.0017*walker.z*frameCount)-50));
+    ortho.add(walker); 
+    //    curva[i%4] = new PVector(walker.x+x, walker.y+random(-30,30), walker.z+z);
 
-    //line(walker.x,walker.y, walker.z, ortho.x, ortho.y, ortho.z );
-//    colorMode(HSB, 360, 255, 255, 255);
-//    stroke(720*noise(0.001*walker.x, 0.002*walker.y, 0.00017*walker.z)%360, //r
-//    255*noise(0.002*walker.x, 0.0003*walker.y, 0.00017*walker.z), //g
-//    255*noise(0.0045*walker.x, 0.00067*walker.y, 0.00017*walker.z), //b
-//    120*sin(i*(1/1024.0)*TWO_PI));                                   //a
-//   
-    stroke(random(0,127), random(127,255));
-    fill(255, 50);
-    //noFill();
-    curveVertex(walker.x+x, walker.y+random(-10,10), walker.z+z);
+    //    if(i%4 == 0){
+    //      stroke(random(0,127), random(127,255));
+    //      strokeWeight(random(0.1,10));
+    //      curve(curva[0].x, curva[0].y, curva[0].z,
+    //            curva[1].x, curva[1].y, curva[1].z,
+    //            curva[2].x, curva[2].y, curva[2].z,
+    //            curva[3].x, curva[3].y, curva[3].z);
+    //            
+    //    }
+    //stroke(random(0, 255), random(127, 255));
+    //  line(walker.x,walker.y, walker.z, ortho.x, ortho.y, ortho.z );
+    //    colorMode(HSB, 360, 255, 255, 255);
+    //    stroke(720*noise(0.001*walker.x, 0.002*walker.y, 0.00017*walker.z)%360, //r
+    //    255*noise(0.002*walker.x, 0.0003*walker.y, 0.00017*walker.z), //g
+    //    255*noise(0.0045*walker.x, 0.00067*walker.y, 0.00017*walker.z), //b
+    //    120*sin(i*(1/1024.0)*TWO_PI));                                   //a
+    //   
+    stroke(random(0, 255), random(0, 155));
+    //  noStroke();
+    //  strokeWeight(10 * noise(0.0002*walker.x, 0.0003*walker.y, 0.00017*walker.z));
+    //  strokeWeight(random(1,10));
+    fill(random(0, 255), 255*amp);
+    //  noFill();
+    //curveVertex(walker.x+x, walker.y+random(-30,30), walker.z+z);
+    curveVertex(ortho.x, ortho.y, ortho.z);
+    count++;
   }
   stroke(190, 160, 120, 0);
   curveVertex(jointPos2.x, jointPos2.y, jointPos2.z);
-  //curveVertex(jointPos2.x, jointPos2.y, jointPos2.z);
+  curveVertex(jointPos2.x, jointPos2.y, jointPos2.z);
   endShape();
   strokeWeight(1);
-  colorMode(RGB);
+  //colorMode(RGB);
+}
+
+//---------------------
+float rmsAmp() {
+  float rms = 0;
+  for (int i=0; i<in.bufferSize (); i++) {
+    rms += in.left.get(i)*in.left.get(i);
+  }
+  return sqrt(rms/in.bufferSize());
 }
 
 //---------------------
@@ -791,33 +991,53 @@ void keyPressed() {
 
   if (key == 'q') {
     perspective();
-    scene = 1;
+    //scene = 1;
+    cubeDepth = !cubeDepth;
   }
   if (key == 'w') {
     //    perspective(radians(45),
     //              float(width)/float(height),
     //              10,150000);
     perspective();
-    scene = 2;
+    //scene = 2;
+    cubeSkel = !cubeSkel;
   }
   if (key == 'e') {
     perspective();
-    scene = 3;
+    //scene = 3;
+    cubeContours = !cubeContours;
   }
 
   if (key == 'a') {
     perspective();
-    scene = 4;
+    //scene = 4;
+    soundSkel = !soundSkel;
   }
 
   if (key == 'd') {
     perspective();
-    scene = 5;
+    //scene = 5;
+    noiseSkel = !noiseSkel;
   }
 
   if (key == 'f') {
     perspective();
-    scene = 6;
+    //scene = 6;
+    spiralSkel = !spiralSkel;
+  }
+
+  if (key == 'g') {
+    contourParticles = !contourParticles;
+  }
+
+  if (key == 'h') {
+    tintasTodas = !tintasTodas;
+  }
+
+  if (key == 'o') {
+    perspective();
+    //scene = 6;
+    rojo = !rojo;
   }
 
   if (key == 's') {
@@ -826,7 +1046,13 @@ void keyPressed() {
 
   switch(keyCode)
   {
-
+  case LEFT:
+    rotY += 0.1f;
+    break;
+  case RIGHT:
+    // zoom out
+    rotY -= 0.1f;
+    break;
   case UP:
     zoomF += 0.01f; 
     break;
