@@ -22,8 +22,10 @@ HashMap <String, PVector> skel = new HashMap<String, PVector>();
 Vector <CuboMind> skelCubos = new Vector<CuboMind>();
 
 
-int N = 5;
+int N = 1000;
 Particula[] particulas = new Particula[N];
+boolean[] inside = new boolean[N];
+
 float[] vtx = new float[8];
 
 //OpenCV blobs;
@@ -50,8 +52,9 @@ boolean soundSkel = false;
 boolean noiseSkel = false;
 boolean spiralSkel = false;
 boolean rojo = false;
-boolean contourParticles = false;
-boolean tintasTodas = true;
+boolean pencilContours = false;
+boolean tintasTodas = false;
+boolean partisInContours = true;
 
 float amp = 0;
 
@@ -79,7 +82,7 @@ void setup() {
 
   kin.setMirror(true);
   kin.enableDepth();
-  //kin.enableRGB();
+  kin.enableRGB();
   kin.enableUser();
 
   depth = createImage(320, 240, ALPHA);
@@ -100,11 +103,10 @@ void setup() {
   skel.put("pieI", new PVector());
 
 
-  for (int i=0; i < N; i++) {
-    particulas[i] = new Particula(int(random(-width, width)), int(random(0, height)), int(random(80, 4000)));
+  for (int j = 0; j < N; j++ ) {    
+    particulas[j] = new Particula(int(random(0, width)), int(random(0, height)));
+    inside[j] = false;
   }
-
-
   //  for (int i=0; i< vtx.length; i++) {
   //    vtx[i] = random(0.001, 0.05);
   //  }
@@ -133,7 +135,7 @@ void draw() {
    0, 1, 0);
    */
   lights();
-  directionalLight(1.0, 1.0, 1.0, cos(frameCount*0.001), (sin(frameCount*0.001)), 0);
+  directionalLight(1.0, 1.0, 1.0, cos(frameCount*0.0001), (sin(frameCount*0.0001)), 0);
 
   kin.update();
   //tintas.update();
@@ -189,12 +191,16 @@ void draw() {
   if (spiralSkel) {
     drawSpiralSkel();
   }
-  if (contourParticles) {
-    drawContourParticles();
+  if (pencilContours) {
+    drawPencilContours();
   }
   if (tintasTodas) {
     drawTintasTodas();
     tintas.draw();
+  }
+
+  if (partisInContours) {
+    drawPartisInContours();
   }
 
   amp = rmsAmp();
@@ -267,9 +273,9 @@ void drawCubeSkel() {
       drawCubeLimb(userId, SimpleOpenNI.SKEL_RIGHT_KNEE, SimpleOpenNI.SKEL_RIGHT_FOOT, 5);
     }
   }
-  CuboMind temp = new CuboMind();  
-  temp.vals(new PVector(0, 0, 1000), 500);
-  temp.display(tintas.getImage());
+  //  CuboMind temp = new CuboMind();  
+  //  temp.vals(new PVector(0, 0, 1000), 500);
+  //  temp.display(tintas.getImage());
   //kin.drawCamFrustum();
   popMatrix();
 }
@@ -479,42 +485,40 @@ void drawSpiralSkel() {
 }
 
 
-//---------------------
-/*
-boolean insidePolygon(ArrayList<PVector> polygon, int N, PVector p){
- 
- int counter = 0;
- int i;
- double xinters;
- ofPoint p1,p2;
- 
- p1 = polygon[0];
- for (i=1;i<=N;i++) {
- p2 = polygon[i % N];
- if (p.y > MIN(p1.y,p2.y)) {
- if (p.y <= MAX(p1.y,p2.y)) {
- if (p.x <= MAX(p1.x,p2.x)) {
- if (p1.y != p2.y) {
- xinters = (p.y-p1.y)*(p2.x-p1.x)/(p2.y-p1.y)+p1.x;
- if (p1.x == p2.x || p.x <= xinters)
- counter++;
- }
- }
- }
- }
- p1 = p2;
- }
- 
- if (counter % 2 == 0){ 
- 
- return false;}
- else{ 
- 
- return true;
- }
- 
- }
- */
+////---------------------
+//boolean insidePolygon(ArrayList<PVector> polygon, int N, PVector p) {
+//
+//  int counter = 0;
+//  int i;
+//  double xinters;
+//  PVector p1, p2;
+//
+//  p1 = polygon[0];
+//  for (i=1; i<=N; i++) {
+//    p2 = polygon[i % N];
+//    if (p.y > MIN(p1.y, p2.y)) {
+//      if (p.y <= MAX(p1.y, p2.y)) {
+//        if (p.x <= MAX(p1.x, p2.x)) {
+//          if (p1.y != p2.y) {
+//            xinters = (p.y-p1.y)*(p2.x-p1.x)/(p2.y-p1.y)+p1.x;
+//            if (p1.x == p2.x || p.x <= xinters)
+//              counter++;
+//          }
+//        }
+//      }
+//    }
+//    p1 = p2;
+//  }
+//
+//  if (counter % 2 == 0) { 
+//
+//    return false;
+//  } else { 
+//
+//    return true;
+//  }
+//}
+
 //---------------------
 void drawCubeDepth() {
   pushMatrix();
@@ -560,8 +564,9 @@ void drawCubeContours() {
   translate(0, 0, -1000);
   PVector rwPoint;
   blobs.findBlobs();
+  int cont = 0;
   for (Contour contour : blobs.contours) {
-    if (contour.area() > 250) {
+    if (blobs.areas.get(cont) > 250) {
       //      stroke(0);
       //      beginShape();
       int i = 0;
@@ -581,12 +586,13 @@ void drawCubeContours() {
       }
       //      endShape();
     }
+    cont++;
   }
   popMatrix();
 }
 
 //----------------------
-void drawContourParticles() {
+void drawPencilContours() {
   pushMatrix();
   // set the scene pos
   translate(width/2, height/2, 0);
@@ -595,16 +601,15 @@ void drawContourParticles() {
   scale(zoomF);
   translate(0, 0, -1000);
   PVector rwPoint;
+
   blobs.findBlobs();
+
   for (Contour contour : blobs.contours) {
-    if (contour.area() > 250) {
-      //      stroke(0);
-      //      beginShape();
+    if (contour.area() > 250) {     
       stroke(120, 70);
       beginShape();
 
       for (PVector point : contour.getPoints ()) {
-        //    println("cubeDraw");
         int indx = int(point.x*2 + (point.y*2*kin.depthWidth()));
         rwPoint = kin.depthMapRealWorld()[indx];
         stroke(255-255*amp, 127);
@@ -612,36 +617,111 @@ void drawContourParticles() {
         //noFill();
         if (rwPoint.z > 80 && rwPoint.z < 4000) {
 
-          fill(map(rwPoint.z, 0, 4000, 0, 255)*amp, 127);
-
+          fill(map(rwPoint.z, 0, 4000, 0, 255)*(1-amp), 127);
           vertex(rwPoint.x, rwPoint.y, rwPoint.z);
-
-          //          for (int i=0; i < N; i++) {
-          //            particulas[i].addAtraction(rwPoint);
-          //            //stroke(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, 1);
-          //            //line(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, rwPoint.x, rwPoint.y, rwPoint.z);
-          //          }
         }
       }
       endShape();
     }
   }
 
+  popMatrix();
+}
 
-  //  //beginShape();
-  //  for (int i=0; i < N; i++) {
-  //    particulas[i].update();
-  //    //fill(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, 170);
-  //    //stroke(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z, 100);
-  //    particulas[i].draw();
-  //    /* if (i > 0) {
-  //     stroke(particulas[i].pos.x, particulas[i].pos.y, particulas[i-1].pos.x, 10);
-  //     line(particulas[i].pos.x, particulas[i].pos.y, particulas[i-1].pos.x, particulas[i-1].pos.y);
-  //     }*/
-  //     vertex(particulas[i].pos.x, particulas[i].pos.y, particulas[i].pos.z);
-  //    particulas[i].atrs.clear();
+
+//----------------------
+void drawPartisInContours() {
+  //image(blobs.oCv.getOutput(), 0, 0);
+  //blobs.findBlobs();
+  blobs.draw();
+  int count = 0;
+  //  for (Contour contour : blobs.contours) {
+  //    fill(200, 0, 0);
+  //    if (blobs.insidePolygon(contour.getPoints (), contour.getPoints ().size(), new PVector(map(mouseX, 0, width, 0, 320), map(mouseY, 0, height, 0, 240)))) {
+  //      fill(0, 200, 0);
+  //      rect(mouseX, mouseY, 20, 20);
+  //    }
+  //
+  //    beginShape();
+  //    for (PVector point : contour.getPoints ()) 
+  //    {
+  //      float x = point.x * 2;
+  //      float y = point.y * 2;
+  //      vertex(x, y, 0);
+  //    }
+  //    endShape();
+  //    count++;
   //  }
-  //  //endShape();
+  //
+  //
+  pushMatrix();
+  // set the scene pos
+  translate(width/2, height/2, 0);
+  rotateX(radians(180));
+  rotateY(rotY);
+  scale(zoomF);
+  translate(0, 0, -1000);
+
+  for (int i=0; i < N; i++) {
+    inside[i] = false;
+  }
+  PVector rwPoint;
+
+  //busca las partículas que se encuentran fuera de algún blob
+  for (Contour contour : blobs.contours) {
+
+    if (blobs.areas.get(count) > 150) {
+      stroke(120, 70);
+      PVector cen = blobs.centroids.get(count);
+
+      for (int i=0; i < N; i++) {
+
+        PVector particlePos = new PVector(map(particulas[i].pos.x, 0, width, 0, 320), map(particulas[i].pos.y, 0, height, 0, 240));
+        if (blobs.insidePolygon(contour.getPoints (), contour.getPoints ().size(), particlePos)) {
+          inside[i] = true;
+          int indx = int(particulas[i].pos.x + (particulas[i].pos.y*width));
+          rwPoint = kin.depthMapRealWorld()[indx];
+          if (rwPoint.z < map(mouseX, 0, width, 100, 4000)) {
+            noStroke();
+            color c = kin.rgbImage().get(int(particulas[i].pos.x), int(particulas[i].pos.y));
+            fill(c, 70);
+            //            vertex(rwPoint.x, rwPoint.y, rwPoint.z);
+            pushMatrix();
+            translate(rwPoint.x, rwPoint.y, rwPoint.z);
+            box(50);
+            popMatrix();
+          }
+          //rect(particulas[i].pos.x, particulas[i].pos.y);
+          //particulas[i].update();
+        }
+      }
+      //endShape();
+    }
+    count++;
+  }
+
+  //actualiza las partículas de acuerdo a su posición   
+
+  for (int i = 0; i < N; i++) {
+    if (!inside[i]) {
+
+      if (blobs.centroids.size() > 0) {
+        int rnd = int(random(0.0, blobs.centroids.size()));
+        //if (blobs.centroids.get(rnd) != null) {
+
+        //particulas[i].setPos(new PVector(map(blobs.centroids.get(rnd).x, 0, 320, 0, 640), map(blobs.centroids.get(rnd).y, 0, 240, 0, 480)));
+        particulas[i].setPos(new PVector(random(0, 640), random( 0, 480)));
+        particulas[i].vel.set(random(-0.1, 0.1), random( -0.1, 0.1), random( -0.1, 0.1));
+        //}
+      }
+    } else {
+      particulas[i].update();
+    }
+  }
+
+
+
+
   popMatrix();
 }
 
@@ -1027,7 +1107,7 @@ void keyPressed() {
   }
 
   if (key == 'g') {
-    contourParticles = !contourParticles;
+    pencilContours = !pencilContours;
   }
 
   if (key == 'h') {
@@ -1038,6 +1118,10 @@ void keyPressed() {
     perspective();
     //scene = 6;
     rojo = !rojo;
+  }
+
+  if (key == 'j') {
+    partisInContours = !partisInContours;
   }
 
   if (key == 's') {

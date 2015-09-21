@@ -2,7 +2,7 @@ class Particula {
 
   float posX = 0;
   float posY = 0;
-  float posZ = 2000;
+  float posZ = 0;
   PVector pos = new PVector(posX, posY, posZ);
   float incX = 2;
   float incY = 5;
@@ -10,12 +10,12 @@ class Particula {
   PVector inc = new PVector(incX, incY, incZ);
   PVector mouse = new PVector();
   PVector m2p = new PVector();
-  PVector g = new PVector(0.0, 0.0, 0.0);
+  PVector g = new PVector(0.0, 0.10, 0.0);
   PVector atr = new PVector(0.0, 0.0, 0.0);
   Vector <PVector> atrs = new Vector<PVector>();
-  PVector vel = new PVector(0.0, 0.0, 0.0);
+  PVector vel = new PVector(0.0,0.0, 0.0);
   float r, gr, b;
-  float damp = 0.999;
+  float damp = 1.0;
   //OscP5 osc;
   //NetAddress sc;
 
@@ -125,32 +125,39 @@ class Particula {
   //----------
   void fronteras() {
 
-    if (pos.x < -1000) {
-      pos.x = -1000;
+    if (pos.x < 0) {
+      pos.x = 0;
       vel.x = vel.x * -1;
     }
-    if (pos.x > 1000) {
-      pos.x = 1000;
+    if (pos.x >= width-1) {
+      pos.x = width-1;
       vel.x *= -1;
     }
-    if (pos.y < -1000) {
-      pos.y = -1000;
+    if (pos.y < 0) {
+      pos.y = 0;
       vel.y *= -1;
     }
-    if (pos.y > 1000) {
-      pos.y = 1000;
+    if (pos.y >= height-1) {
+      pos.y = height-1;
       vel.y *= -1;
     }
     //++
-    if (pos.z < 0) {
-      pos.z = 0;
-      vel.z *= -1;
-    }
-    if (pos.z > 4000) {
-      pos.z = 4000;
-      vel.z *= -1;
-    }
+//    if (pos.z < 0) {
+//      pos.z = 0;
+//      vel.z *= -1;
+//    }
+//    if (pos.z > 4000) {
+//      pos.z = 4000;
+//      vel.z *= -1;
+//    }
   } 
   //----------
+  void setPos(PVector _p){
+    pos.set(_p.x, _p.y, _p.z);
+    posX = _p.x;
+    posY = _p.y;
+    posZ = _p.z;
+  }
+  
 }
 
